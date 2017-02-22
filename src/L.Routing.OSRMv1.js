@@ -19,6 +19,7 @@
 	L.Routing.OSRMv1 = L.Class.extend({
 		options: {
 			serviceUrl: 'https://router.project-osrm.org/route/v1',
+			services: [{label: 'default', path: 'https://router.project-osrm.org/route/v1'}],
 			profile: 'driving',
 			timeout: 30 * 1000,
 			routingOptions: {
