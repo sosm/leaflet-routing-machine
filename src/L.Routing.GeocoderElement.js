@@ -5,16 +5,6 @@
 	L.Routing = L.Routing || {};
 	L.extend(L.Routing, require('./L.Routing.Autocomplete'));
 
-	function selectInputText(input) {
-		if (input.setSelectionRange) {
-			// On iOS, select() doesn't work
-			input.setSelectionRange(0, 9999);
-		} else {
-			// On at least IE8, setSeleectionRange doesn't exist
-			input.select();
-		}
-	}
-
 	L.Routing.GeocoderElement = L.Class.extend({
 		includes: L.Mixin.Events,
 
@@ -75,10 +65,6 @@
 			// TODO: look into why and make _updateWaypointName fix this.
 			geocoderInput.value = wp.name;
 
-			L.DomEvent.addListener(geocoderInput, 'click', function() {
-				selectInputText(this);
-			}, geocoderInput);
-
 			if (closeButton) {
 				L.DomEvent.addListener(closeButton, 'click', function() {
 					this.fire('delete', { waypoint: this._waypoint });
@@ -133,7 +119,6 @@
 		focus: function() {
 			var input = this._element.input;
 			input.focus();
-			selectInputText(input);
 		},
 
 		_update: function() {
