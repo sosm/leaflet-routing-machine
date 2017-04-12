@@ -88,6 +88,7 @@
 				{
 					var services = this.options.services, router = this.options.router;
 					profileSel = L.DomUtil.create('select', 'leaflet-routing-select-profile', fromtocontainer);
+                                        profileSel.id = "profile-selector";
 					for (var profile = 0, len = this.options.services.length; profile < len; profile++)
 					{
 						var profOption;
@@ -100,7 +101,9 @@
 						if (profileSel.selectedIndex >= 0 &&
 							profileSel.selectedIndex < services.length) {
 							L.Util.setOptions(router,
-								{serviceUrl: services[profileSel.selectedIndex].path});
+								{
+                                                                    serviceUrl: services[profileSel.selectedIndex].path,
+                                                                    fixspeed: services[profileSel.selectedIndex].fixspeed});
 							this.setWaypoints(this.getWaypoints());
 						}
 					}, this);
