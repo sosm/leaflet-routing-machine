@@ -2,13 +2,11 @@
 	'use strict';
 
 	var L = require('leaflet');
+	var Formatter = require('./formatter');
+	var ItineraryBuilder = require('./itinerary-builder');
 
-	L.Routing = L.Routing || {};
-	L.extend(L.Routing, require('./L.Routing.Formatter'));
-	L.extend(L.Routing, require('./L.Routing.ItineraryBuilder'));
-
-	L.Routing.Itinerary = L.Control.extend({
-		includes: L.Mixin.Events,
+	module.exports = L.Control.extend({
+		includes: ((typeof L.Evented !== 'undefined' && L.Evented.prototype) || L.Mixin.Events),
 
 		options: {
 			pointMarkerStyle: {
@@ -37,8 +35,8 @@
 
 		initialize: function(options) {
 			L.setOptions(this, options);
-			this._formatter = this.options.formatter || new L.Routing.Formatter(this.options);
-			this._itineraryBuilder = this.options.itineraryBuilder || new L.Routing.ItineraryBuilder({
+			this._formatter = this.options.formatter || new Formatter(this.options);
+			this._itineraryBuilder = this.options.itineraryBuilder || new ItineraryBuilder({
 				containerClassName: this.options.itineraryClassName
 			});
 		},
@@ -153,7 +151,9 @@
 				icon = this._formatter.getIconName(instr, i);
 				step = this._itineraryBuilder.createStep(text, distance, icon, steps);
 
-				this._addRowListeners(step, r.coordinates[instr.index]);
+				if(instr.index) {
+					this._addRowListeners(step, r.coordinates[instr.index]);
+				}
 			}
 
 			return container;
@@ -224,10 +224,4 @@
 			this.fire('routeselected', routes);
 		}
 	});
-
-	L.Routing.itinerary = function(options) {
-		return new L.Routing.Itinerary(options);
-	};
-
-	module.exports = L.Routing;
 })();

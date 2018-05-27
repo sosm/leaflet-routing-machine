@@ -3,10 +3,8 @@
 
 	var L = require('leaflet');
 
-	L.Routing = L.Routing || {};
-
-	L.Routing.Line = L.LayerGroup.extend({
-		includes: L.Mixin.Events,
+	module.exports = L.LayerGroup.extend({
+		includes: ((typeof L.Evented !== 'undefined' && L.Evented.prototype) || L.Mixin.Events),
 
 		options: {
 			styles: [
@@ -38,7 +36,7 @@
 				this.options.styles,
 				this.options.addWaypoints);
 		},
-		
+
 		getBounds: function() {
 			return L.latLngBounds(this._route.coordinates);
 		},
@@ -129,10 +127,4 @@
 			return this._wpIndices;
 		}
 	});
-
-	L.Routing.line = function(route, options) {
-		return new L.Routing.Line(route, options);
-	};
-
-	module.exports = L.Routing;
 })();

@@ -1,13 +1,82 @@
+/* 
+   NOTICE
+   Since version 3.2.5, the functionality in this file is by
+   default NOT used for localizing OSRM instructions.
+   Instead, we rely on the module osrm-text-instructions (https://github.com/Project-OSRM/osrm-text-instructions/).
+   
+   This file can still be used for other routing backends, or if you specify the
+   stepToText option in the OSRMv1 class.
+*/
+
 (function() {
 	'use strict';
+
+	var spanish = {
+		directions: {
+			N: 'norte',
+			NE: 'noreste',
+			E: 'este',
+			SE: 'sureste',
+			S: 'sur',
+			SW: 'suroeste',
+			W: 'oeste',
+			NW: 'noroeste',
+			SlightRight: 'leve giro a la derecha',
+			Right: 'derecha',
+			SharpRight: 'giro pronunciado a la derecha',
+			SlightLeft: 'leve giro a la izquierda',
+			Left: 'izquierda',
+			SharpLeft: 'giro pronunciado a la izquierda',
+			Uturn: 'media vuelta'
+		},
+		instructions: {
+			// instruction, postfix if the road is named
+			'Head':
+				['Derecho {dir}', ' sobre {road}'],
+			'Continue':
+				['Continuar {dir}', ' en {road}'],
+			'TurnAround':
+				['Dar vuelta'],
+			'WaypointReached':
+				['Llegó a un punto del camino'],
+			'Roundabout':
+				['Tomar {exitStr} salida en la rotonda', ' en {road}'],
+			'DestinationReached':
+				['Llegada a destino'],
+			'Fork': ['En el cruce gira a {modifier}', ' hacia {road}'],
+			'Merge': ['Incorpórate {modifier}', ' hacia {road}'],
+			'OnRamp': ['Gira {modifier} en la salida', ' hacia {road}'],
+			'OffRamp': ['Toma la salida {modifier}', ' hacia {road}'],
+			'EndOfRoad': ['Gira {modifier} al final de la carretera', ' hacia {road}'],
+			'Onto': 'hacia {road}'
+		},
+		formatOrder: function(n) {
+			return n + 'º';
+		},
+		ui: {
+			startPlaceholder: 'Inicio',
+			viaPlaceholder: 'Via {viaNumber}',
+			endPlaceholder: 'Destino'
+		},
+		units: {
+			meters: 'm',
+			kilometers: 'km',
+			yards: 'yd',
+			miles: 'mi',
+			hours: 'h',
+			minutes: 'min',
+			seconds: 's'
+		}
+	};
+
 	L.Routing = L.Routing || {};
 
-	L.Routing.Localization = L.Class.extend({
+	var Localization = L.Class.extend({
 		initialize: function(langs) {
 			this._langs = L.Util.isArray(langs) ? langs : [langs, 'en'];
 
 			for (var i = 0, l = this._langs.length; i < l; i++) {
-				if (!L.Routing.Localization[this._langs[i]]) {
+				if (!Localization[this._langs[i]]) {
 					throw new Error('No localization for language "' + this._langs[i] + '".');
 				}
 			}
@@ -21,7 +90,7 @@
 			keys = L.Util.isArray(keys) ? keys : [keys];
 
 			for (var i = 0, l = this._langs.length; i < l; i++) {
-				dict = L.Routing.Localization[this._langs[i]];
+				dict = Localization[this._langs[i]];
 				for (var j = 0, nKeys = keys.length; dict && j < nKeys; j++) {
 					key = keys[j];
 					value = dict[key];
@@ -35,7 +104,7 @@
 		}
 	});
 
-	L.Routing.Localization = L.extend(L.Routing.Localization, {
+	module.exports = L.extend(Localization, {
 		'en': {
 			directions: {
 				N: 'north',
@@ -106,7 +175,14 @@
 				S: 'Süden',
 				SW: 'Südwesten',
 				W: 'Westen',
-				NW: 'Nordwesten'
+				NW: 'Nordwesten',
+				SlightRight: 'leicht rechts',
+				Right: 'rechts',
+				SharpRight: 'scharf rechts',
+				SlightLeft: 'leicht links',
+				Left: 'links',
+				SharpLeft: 'scharf links',
+				Uturn: 'Wenden'
 			},
 			instructions: {
 				// instruction, postfix if the road is named
@@ -134,6 +210,12 @@
 					['Nehmen Sie die {exitStr} Ausfahrt im Kreisverkehr', ' auf {road}'],
 				'DestinationReached':
 					['Sie haben ihr Ziel erreicht'],
+				'Fork': ['An der Kreuzung {modifier}', ' auf {road}'],
+				'Merge': ['Fahren Sie {modifier} weiter', ' auf {road}'],
+				'OnRamp': ['Fahren Sie {modifier} auf die Auffahrt', ' auf {road}'],
+				'OffRamp': ['Nehmen Sie die Ausfahrt {modifier}', ' auf {road}'],
+				'EndOfRoad': ['Fahren Sie {modifier} am Ende der Straße', ' auf {road}'],
+				'Onto': 'auf {road}'
 			},
 			formatOrder: function(n) {
 				return n + '.';
@@ -208,53 +290,9 @@
 			}
 		},
 
-		'sp': {
-			directions: {
-				N: 'norte',
-				NE: 'noreste',
-				E: 'este',
-				SE: 'sureste',
-				S: 'sur',
-				SW: 'suroeste',
-				W: 'oeste',
-				NW: 'noroeste'
-			},
-			instructions: {
-				// instruction, postfix if the road is named
-				'Head':
-					['Derecho {dir}', ' sobre {road}'],
-				'Continue':
-					['Continuar {dir}', ' en {road}'],
-				'SlightRight':
-					['Leve giro a la derecha', ' sobre {road}'],
-				'Right':
-					['Derecha', ' sobre {road}'],
-				'SharpRight':
-					['Giro pronunciado a la derecha', ' sobre {road}'],
-				'TurnAround':
-					['Dar vuelta'],
-				'SharpLeft':
-					['Giro pronunciado a la izquierda', ' sobre {road}'],
-				'Left':
-					['Izquierda', ' en {road}'],
-				'SlightLeft':
-					['Leve giro a la izquierda', ' en {road}'],
-				'WaypointReached':
-					['Llegó a un punto del camino'],
-				'Roundabout':
-					['Tomar {exitStr} salida en la rotonda', ' en {road}'],
-				'DestinationReached':
-					['Llegada a destino'],
-			},
-			formatOrder: function(n) {
-				return n + 'º';
-			},
-			ui: {
-				startPlaceholder: 'Inicio',
-				viaPlaceholder: 'Via {viaNumber}',
-				endPlaceholder: 'Destino'
-			}
-		},
+		'es': spanish,
+		'sp': spanish,
+		
 		'nl': {
 			directions: {
 				N: 'noordelijke',
@@ -409,7 +447,14 @@
 				S: 'sul',
 				SW: 'sudoeste',
 				W: 'oeste',
-				NW: 'noroeste'
+				NW: 'noroeste',
+				SlightRight: 'curva ligeira a direita',
+				Right: 'direita',
+				SharpRight: 'curva fechada a direita',
+				SlightLeft: 'ligeira a esquerda',
+				Left: 'esquerda',
+				SharpLeft: 'curva fechada a esquerda',
+				Uturn: 'Meia volta'
 			},
 			instructions: {
 				// instruction, postfix if the road is named
@@ -437,6 +482,12 @@
 					['Pegue a {exitStr} saída na rotatória', ' na {road}'],
 				'DestinationReached':
 					['Destino atingido'],
+				'Fork': ['Na encruzilhada, vire a {modifier}', ' na {road}'],
+				'Merge': ['Entre à {modifier}', ' na {road}'],
+				'OnRamp': ['Vire {modifier} na rampa', ' na {road}'],
+				'OffRamp': ['Entre na rampa na {modifier}', ' na {road}'],
+				'EndOfRoad': ['Vire {modifier} no fim da rua', ' na {road}'],
+				'Onto': 'na {road}'
 			},
 			formatOrder: function(n) {
 				return n + 'º';
@@ -543,8 +594,188 @@
 				viaPlaceholder: 'μέσω {viaNumber}',
 				endPlaceholder: 'Προορισμός'
 			}
+		},
+		'ca': {
+			directions: {
+				N: 'nord',
+				NE: 'nord-est',
+				E: 'est',
+				SE: 'sud-est',
+				S: 'sud',
+				SW: 'sud-oest',
+				W: 'oest',
+				NW: 'nord-oest',
+				SlightRight: 'lleu gir a la dreta',
+				Right: 'dreta',
+				SharpRight: 'gir pronunciat a la dreta',
+				SlightLeft: 'gir pronunciat a l\'esquerra',
+				Left: 'esquerra',
+				SharpLeft: 'lleu gir a l\'esquerra',
+				Uturn: 'mitja volta'
+			},
+			instructions: {
+				'Head':
+					['Recte {dir}', ' sobre {road}'],
+				'Continue':
+					['Continuar {dir}'],
+				'TurnAround':
+					['Donar la volta'],
+				'WaypointReached':
+					['Ha arribat a un punt del camí'],
+				'Roundabout':
+					['Agafar {exitStr} sortida a la rotonda', ' a {road}'],
+				'DestinationReached':
+					['Arribada al destí'],
+				'Fork': ['A la cruïlla gira a la {modifier}', ' cap a {road}'],
+				'Merge': ['Incorpora\'t {modifier}', ' a {road}'],
+				'OnRamp': ['Gira {modifier} a la sortida', ' cap a {road}'],
+				'OffRamp': ['Pren la sortida {modifier}', ' cap a {road}'],
+				'EndOfRoad': ['Gira {modifier} al final de la carretera', ' cap a {road}'],
+				'Onto': 'cap a {road}'
+			},
+			formatOrder: function(n) {
+				return n + 'º';
+			},
+			ui: {
+				startPlaceholder: 'Origen',
+				viaPlaceholder: 'Via {viaNumber}',
+				endPlaceholder: 'Destí'
+			},
+			units: {
+				meters: 'm',
+				kilometers: 'km',
+				yards: 'yd',
+				miles: 'mi',
+				hours: 'h',
+				minutes: 'min',
+				seconds: 's'
+			}
+		},
+		'ru': {
+			directions: {
+				N: 'север',
+				NE: 'северовосток',
+				E: 'восток',
+				SE: 'юговосток',
+				S: 'юг',
+				SW: 'югозапад',
+				W: 'запад',
+				NW: 'северозапад',
+				SlightRight: 'плавно направо',
+				Right: 'направо',
+				SharpRight: 'резко направо',
+				SlightLeft: 'плавно налево',
+				Left: 'налево',
+				SharpLeft: 'резко налево',
+				Uturn: 'развернуться'
+			},
+			instructions: {
+				'Head':
+					['Начать движение на {dir}', ' по {road}'],
+				'Continue':
+					['Продолжать движение на {dir}', ' по {road}'],
+				'SlightRight':
+					['Плавный поворот направо', ' на {road}'],
+				'Right':
+					['Направо', ' на {road}'],
+				'SharpRight':
+					['Резкий поворот направо', ' на {road}'],
+				'TurnAround':
+					['Развернуться'],
+				'SharpLeft':
+					['Резкий поворот налево', ' на {road}'],
+				'Left':
+					['Поворот налево', ' на {road}'],
+				'SlightLeft':
+					['Плавный поворот налево', ' на {road}'],
+				'WaypointReached':
+					['Точка достигнута'],
+				'Roundabout':
+					['{exitStr} съезд с кольца', ' на {road}'],
+				'DestinationReached':
+					['Окончание маршрута'],
+				'Fork': ['На развилке поверните {modifier}', ' на {road}'],
+				'Merge': ['Перестройтесь {modifier}', ' на {road}'],
+				'OnRamp': ['Поверните {modifier} на съезд', ' на {road}'],
+				'OffRamp': ['Съезжайте на {modifier}', ' на {road}'],
+				'EndOfRoad': ['Поверните {modifier} в конце дороги', ' на {road}'],
+				'Onto': 'на {road}'
+			},
+			formatOrder: function(n) {
+				return n + '-й';
+			},
+			ui: {
+				startPlaceholder: 'Начало',
+				viaPlaceholder: 'Через {viaNumber}',
+				endPlaceholder: 'Конец'
+			},
+			units: {
+				meters: 'м',
+				kilometers: 'км',
+				yards: 'ярд',
+				miles: 'ми',
+				hours: 'ч',
+				minutes: 'м',
+				seconds: 'с'
+			}
+		},
+                
+                'pl': {
+			directions: {
+				N: 'północ',
+				NE: 'północny wschód',
+				E: 'wschód',
+				SE: 'południowy wschód',
+				S: 'południe',
+				SW: 'południowy zachód',
+				W: 'zachód',
+				NW: 'północny zachód',
+				SlightRight: 'lekko w prawo',
+				Right: 'w prawo',
+				SharpRight: 'ostro w prawo',
+				SlightLeft: 'lekko w lewo',
+				Left: 'w lewo',
+				SharpLeft: 'ostro w lewo',
+				Uturn: 'zawróć'
+			},
+			instructions: {
+				// instruction, postfix if the road is named
+				'Head':
+					['Kieruj się na {dir}', ' na {road}'],
+				'Continue':
+					['Jedź dalej przez {dir}'],
+				'TurnAround':
+					['Zawróć'],
+				'WaypointReached':
+					['Punkt pośredni'],
+				'Roundabout':
+					['Wyjedź {exitStr} zjazdem na rondzie', ' na {road}'],
+				'DestinationReached':
+					['Dojechano do miejsca docelowego'],
+				'Fork': ['Na rozwidleniu {modifier}', ' na {road}'],
+				'Merge': ['Zjedź {modifier}', ' na {road}'],
+				'OnRamp': ['Wjazd {modifier}', ' na {road}'],
+				'OffRamp': ['Zjazd {modifier}', ' na {road}'],
+				'EndOfRoad': ['Skręć {modifier} na końcu drogi', ' na {road}'],
+				'Onto': 'na {road}'
+			},
+			formatOrder: function(n) {
+				return n + '.';
+			},
+			ui: {
+				startPlaceholder: 'Początek',
+				viaPlaceholder: 'Przez {viaNumber}',
+				endPlaceholder: 'Koniec'
+			},
+			units: {
+				meters: 'm',
+				kilometers: 'km',
+				yards: 'yd',
+				miles: 'mi',
+				hours: 'godz',
+				minutes: 'min',
+				seconds: 's'
+			}
 		}
 	});
-
-	module.exports = L.Routing;
 })();

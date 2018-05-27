@@ -2,21 +2,21 @@
 	'use strict';
 
 	var L = require('leaflet'),
-		corslite = require('corslite'),
-		polyline = require('polyline');
+		corslite = require('@mapbox/corslite'),
+		polyline = require('@mapbox/polyline'),
+		osrmTextInstructions = require('osrm-text-instructions')('v5');
 
 	// Ignore camelcase naming for this file, since OSRM's API uses
 	// underscores.
 	/* jshint camelcase: false */
 
-	L.Routing = L.Routing || {};
-	L.extend(L.Routing, require('./L.Routing.Waypoint'));
+	var Waypoint = require('./waypoint');
 
 	/**
 	 * Works against OSRM's new API in version 5.0; this has
 	 * the API version v1.
 	 */
-	L.Routing.OSRMv1 = L.Class.extend({
+	module.exports = L.Class.extend({
 		options: {
 			serviceUrl: 'https://router.project-osrm.org/route/v1',
 			services: [{label: 'default', path: 'https://router.project-osrm.org/route/v1'}],
@@ -27,7 +27,9 @@
 				steps: true
 			},
 			polylinePrecision: 5,
-			useHints: true
+			useHints: true,
+			suppressDemoServerWarning: false,
+			language: 'en'
 		},
 
 		initialize: function(options) {
@@ -35,6 +37,21 @@
 			this._hints = {
 				locations: {}
 			};
+
+			if (!this.options.suppressDemoServerWarning &&
+				this.options.serviceUrl.indexOf('//router.project-osrm.org') >= 0) {
+				console.warn('You are using OSRM\'s demo server. ' +
+					'Please note that it is **NOT SUITABLE FOR PRODUCTION USE**.\n' +
+					'Refer to the demo server\'s usage policy: ' +
+					'https://github.com/Project-OSRM/osrm-backend/wiki/Api-usage-policy\n\n' +
+					'To change, set the serviceUrl option.\n\n' +
+					'Please do not report issues with this server to neither ' +
+					'Leaflet Routing Machine or OSRM - it\'s for\n' +
+					'demo only, and will sometimes not be available, or work in ' +
+					'unexpected ways.\n\n' +
+					'Please set up your own OSRM server, or use a paid service ' +
+					'provider for production.');
+			}
 		},
 
 		route: function(waypoints, callback, context, options) {
@@ -43,7 +60,8 @@
 				url,
 				timer,
 				wp,
-				i;
+				i,
+				xhr;
 
 			options = L.extend({}, this.options.routingOptions, options);
 			url = this.buildRouteUrl(waypoints, options);
@@ -64,42 +82,41 @@
 			// the request is being processed.
 			for (i = 0; i < waypoints.length; i++) {
 				wp = waypoints[i];
-				wps.push(new L.Routing.Waypoint(wp.latLng, wp.name, wp.options));
+				wps.push(new Waypoint(wp.latLng, wp.name, wp.options));
 			}
 
-			corslite(url, L.bind(function(err, resp) {
+			return xhr = corslite(url, L.bind(function(err, resp) {
 				var data,
-					errorMessage,
-					statusCode;
+					error =  {};
 
 				clearTimeout(timer);
 				if (!timedOut) {
-					errorMessage = 'HTTP request failed: ' + err;
-					statusCode = -1;
-
 					if (!err) {
 						try {
 							data = JSON.parse(resp.responseText);
 							try {
 								return this._routeDone(data, wps, options, callback, context);
 							} catch (ex) {
-								statusCode = -3;
-								errorMessage = ex.toString();
+								error.status = -3;
+								error.message = ex.toString();
 							}
 						} catch (ex) {
-							statusCode = -2;
-							errorMessage = 'Error parsing OSRM response: ' + ex.toString();
+							error.status = -2;
+							error.message = 'Error parsing OSRM response: ' + ex.toString();
 						}
+					} else {
+						error.message = 'HTTP request failed: ' + err.type +
+							(err.target && err.target.status ? ' HTTP ' + err.target.status + ': ' + err.target.statusText : '');
+						error.url = url;
+						error.status = -1;
+						error.target = err;
 					}
 
-					callback.call(context || callback, {
-						status: statusCode,
-						message: errorMessage
-					});
+					callback.call(context || callback, error);
+				} else {
+					xhr.abort();
 				}
 			}, this));
-
-			return this;
 		},
 
 		requiresMoreDetail: function(route, zoom, bounds) {
@@ -158,6 +175,7 @@
 					}
 				},
 				legNames = [],
+				waypointIndices = [],
 				index = 0,
 				legCount = responseRoute.legs.length,
 				hasSteps = responseRoute.legs[0].steps.length > 0,
@@ -167,7 +185,15 @@
 				step,
 				geometry,
 				type,
-				modifier;
+				modifier,
+				text,
+				stepToText;
+
+			if (this.options.stepToText) {
+				stepToText = this.options.stepToText;
+			} else {
+				stepToText = L.bind(osrmTextInstructions.compile, osrmTextInstructions, this.options.language);
+			}
 
 			for (i = 0; i < legCount; i++) {
 				leg = responseRoute.legs[i];
@@ -178,8 +204,13 @@
 					result.coordinates.push.apply(result.coordinates, geometry);
 					type = this._maneuverToInstructionType(step.maneuver, i === legCount - 1);
 					modifier = this._maneuverToModifier(step.maneuver);
+					text = stepToText(step, {legCount: legCount, legIndex: i});
 
 					if (type) {
+						if ((i == 0 && step.maneuver.type == 'depart') || step.maneuver.type == 'arrive') {
+							waypointIndices.push(index);
+						}
+
 						result.instructions.push({
 							type: type,
 							distance: step.distance,
@@ -189,7 +220,8 @@
 							exit: step.maneuver.exit,
 							index: index,
 							mode: step.mode,
-							modifier: modifier
+							modifier: modifier,
+							text: text
 						});
 					}
 
@@ -200,6 +232,8 @@
 			result.name = legNames.join(', ');
 			if (!hasSteps) {
 				result.coordinates = this._decodePolyline(responseRoute.geometry);
+			} else {
+				result.waypointIndices = waypointIndices;
 			}
 
 			return result;
@@ -281,7 +315,7 @@
 			    viaLoc;
 			for (i = 0; i < vias.length; i++) {
 				viaLoc = vias[i].location;
-				wps.push(L.Routing.waypoint(L.latLng(viaLoc[1], viaLoc[0]),
+				wps.push(new Waypoint(L.latLng(viaLoc[1], viaLoc[0]),
 				                            inputWaypoints[i].name,
 											inputWaypoints[i].options));
 			}
@@ -305,7 +339,7 @@
 			}
 
 			computeInstructions =
-				!(options && options.geometryOnly);
+				true;
 
 			return this.options.serviceUrl + '/' + this.options.profile + '/' +
 				locs.join(';') + '?' +
@@ -331,10 +365,4 @@
 			}
 		},
 	});
-
-	L.Routing.osrmv1 = function(options) {
-		return new L.Routing.OSRMv1(options);
-	};
-
-	module.exports = L.Routing;
 })();

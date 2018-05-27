@@ -2,11 +2,11 @@
 	'use strict';
 
 	var L = require('leaflet');
-	L.Routing = L.Routing || {};
-	L.extend(L.Routing, require('./L.Routing.Autocomplete'));
+	var Autocomplete = require('./autocomplete');
+	var Localization = require('./localization');
 
-	L.Routing.GeocoderElement = L.Class.extend({
-		includes: L.Mixin.Events,
+	module.exports = L.Class.extend({
+		includes: ((typeof L.Evented !== 'undefined' && L.Evented.prototype) || L.Mixin.Events),
 
 		options: {
 			createGeocoder: function(i, nWps, options) {
@@ -23,7 +23,7 @@
 				};
 			},
 			geocoderPlaceholder: function(i, numberWaypoints, geocoderElement) {
-				var l = new L.Routing.Localization(geocoderElement.options.language).localize('ui');
+				var l = new Localization(geocoderElement.options.language).localize('ui');
 				return i === 0 ?
 					l.startPlaceholder :
 					(i < numberWaypoints - 1 ?
@@ -71,7 +71,7 @@
 				}, this);
 			}
 
-			new L.Routing.Autocomplete(geocoderInput, function(r) {
+			new Autocomplete(geocoderInput, function(r) {
 					geocoderInput.value = r.name;
 					wp.name = r.name;
 					wp.latLng = r.center;
@@ -128,10 +128,4 @@
 			this.fire('reversegeocoded', {waypoint: wp, value: value});
 		}
 	});
-
-	L.Routing.geocoderElement = function(wp, i, nWps, plan) {
-		return new L.Routing.GeocoderElement(wp, i, nWps, plan);
-	};
-
-	module.exports = L.Routing;
 })();

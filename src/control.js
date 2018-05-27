@@ -3,18 +3,15 @@
 
 	var L = require('leaflet');
 
-	L.Routing = L.Routing || {};
-	L.extend(L.Routing, require('./L.Routing.Itinerary'));
-	L.extend(L.Routing, require('./L.Routing.Line'));
-	L.extend(L.Routing, require('./L.Routing.Plan'));
-	L.extend(L.Routing, require('./L.Routing.OSRMv1'));
-	L.extend(L.Routing, require('./L.Routing.Mapbox'));
-	L.extend(L.Routing, require('./L.Routing.ErrorControl'));
+	var Itinerary = require('./itinerary');
+	var Line = require('./line');
+	var Plan = require('./plan');
+	var OSRMv1 = require('./osrm-v1');
 
-	L.Routing.Control = L.Routing.Itinerary.extend({
+	module.exports = Itinerary.extend({
 		options: {
 			fitSelectedRoutes: 'smart',
-			routeLine: function(route, options) { return L.Routing.line(route, options); },
+			routeLine: function(route, options) { return new Line(route, options); },
 			autoRoute: true,
 			routeWhileDragging: false,
 			routeDragInterval: 500,
@@ -28,11 +25,11 @@
 		initialize: function(options) {
 			L.Util.setOptions(this, options);
 
-			this._router = this.options.router || new L.Routing.OSRMv1(options);
-			this._plan = this.options.plan || L.Routing.plan(this.options.waypoints, options);
+			this._router = this.options.router || new OSRMv1(options);
+			this._plan = this.options.plan || new Plan(this.options.waypoints, options);
 			this._requestCount = 0;
 
-			L.Routing.Itinerary.prototype.initialize.call(this, options);
+			Itinerary.prototype.initialize.call(this, options);
 
 			this.on('routeselected', this._routeSelected, this);
 			if (this.options.defaultErrorHandler) {
@@ -48,37 +45,39 @@
 			}
 		},
 
+		_onZoomEnd: function() {
+			if (!this._selectedRoute ||
+				!this._router.requiresMoreDetail) {
+				return;
+			}
+
+			var map = this._map;
+			if (this._router.requiresMoreDetail(this._selectedRoute,
+					map.getZoom(), map.getBounds())) {
+				this.route({
+					callback: L.bind(function(err, routes) {
+						var i;
+						if (!err) {
+							for (i = 0; i < routes.length; i++) {
+								this._routes[i].properties = routes[i].properties;
+							}
+							this._updateLineCallback(err, routes);
+						}
+
+					}, this),
+					simplifyGeometry: false,
+					geometryOnly: true
+				});
+			}
+		},
+
 		onAdd: function(map) {
-			var container = L.Routing.Itinerary.prototype.onAdd.call(this, map);
+			var container = Itinerary.prototype.onAdd.call(this, map);
 
 			this._map = map;
 			this._map.addLayer(this._plan);
 
-			this._map.on('zoomend', function() {
-				if (!this._selectedRoute ||
-					!this._router.requiresMoreDetail) {
-					return;
-				}
-
-				var map = this._map;
-				if (this._router.requiresMoreDetail(this._selectedRoute,
-						map.getZoom(), map.getBounds())) {
-					this.route({
-						callback: L.bind(function(err, routes) {
-							var i;
-							if (!err) {
-								for (i = 0; i < routes.length; i++) {
-									this._routes[i].properties = routes[i].properties;
-								}
-								this._updateLineCallback(err, routes);
-							}
-
-						}, this),
-						simplifyGeometry: false,
-						geometryOnly: true
-					});
-				}
-			}, this);
+			this._map.on('zoomend', this._onZoomEnd, this);
 
 			if (this._plan.options.geocoder) {
 				var fromtocontainer, profileSel;
@@ -115,11 +114,17 @@
 		},
 
 		onRemove: function(map) {
+			map.off('zoomend', this._onZoomEnd, this);
 			if (this._line) {
 				map.removeLayer(this._line);
 			}
 			map.removeLayer(this._plan);
-			return L.Routing.Itinerary.prototype.onRemove.call(this, map);
+			if (this._alternatives && this._alternatives.length > 0) {
+				for (var i = 0, len = this._alternatives.length; i < len; i++) {
+					map.removeLayer(this._alternatives[i]);
+				}
+			}
+			return Itinerary.prototype.onRemove.call(this, map);
 		},
 
 		getWaypoints: function() {
@@ -296,8 +301,11 @@
 			if (!err) {
 				routes = routes.slice();
 				var selected = routes.splice(this._selectedRoute.routesIndex, 1)[0];
-				this._updateLines({route: selected, alternatives: routes });
-			} else {
+				this._updateLines({
+					route: selected,
+					alternatives: this.options.showAlternatives ? routes : []
+				});
+			} else if (err.type !== 'abort') {
 				this._clearLines();
 			}
 		},
@@ -305,6 +313,11 @@
 		route: function(options) {
 			var ts = ++this._requestCount,
 				wps;
+
+			if (this._pendingRequest && this._pendingRequest.abort) {
+				this._pendingRequest.abort();
+				this._pendingRequest = null;
+			}
 
 			options = options || {};
 
@@ -315,15 +328,21 @@
 
 				wps = options && options.waypoints || this._plan.getWaypoints();
 				this.fire('routingstart', {waypoints: wps});
-				this._router.route(wps, options.callback || function(err, routes) {
+				this._pendingRequest = this._router.route(wps, function(err, routes) {
+					this._pendingRequest = null;
+
+					if (options.callback) {
+						return options.callback.call(this, err, routes);
+					}
+
 					// Prevent race among multiple requests,
-					// by checking the current request's timestamp
+					// by checking the current request's count
 					// against the last request's; ignore result if
-					// this isn't the latest request.
+					// this isn't the last request.
 					if (ts === this._requestCount) {
 						this._clearLines();
 						this._clearAlts();
-						if (err) {
+						if (err && err.type !== 'abort') {
 							this.fire('routingerror', {error: err});
 							return;
 						}
@@ -355,10 +374,4 @@
 			}
 		}
 	});
-
-	L.Routing.control = function(options) {
-		return new L.Routing.Control(options);
-	};
-
-	module.exports = L.Routing;
 })();
