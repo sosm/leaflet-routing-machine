@@ -73,11 +73,16 @@
 
 	var Localization = L.Class.extend({
 		initialize: function(langs) {
-			this._langs = L.Util.isArray(langs) ? langs : [langs, 'en'];
+			this._langs = L.Util.isArray(langs) ? langs.slice() : [langs, 'en'];
 
 			for (var i = 0, l = this._langs.length; i < l; i++) {
+				var generalizedCode = /([A-Za-z]+)/.exec(this._langs[i])[1]
 				if (!Localization[this._langs[i]]) {
-					throw new Error('No localization for language "' + this._langs[i] + '".');
+					if (Localization[generalizedCode]) {
+						this._langs[i] = generalizedCode;
+					} else {
+						throw new Error('No localization for language "' + this._langs[i] + '".');
+					}
 				}
 			}
 		},
@@ -775,6 +780,74 @@
 				hours: 'godz',
 				minutes: 'min',
 				seconds: 's'
+			}
+		},
+		'uk': {
+			directions: {
+				N: 'північ',
+				NE: 'північний схід',
+				E: 'схід',
+				SE: 'південний схід',
+				S: 'південь',
+				SW: 'південний захід',
+				W: 'захід',
+				NW: 'північний захід',
+				SlightRight: 'плавно направо',
+				Right: 'направо',
+				SharpRight: 'різко направо',
+				SlightLeft: 'плавно наліво',
+				Left: 'наліво',
+				SharpLeft: 'різко наліво',
+				Uturn: 'розвернутися',
+			},
+			instructions: {
+				'Head':
+					[ 'Почати рух на {dir}', 'по {road}'],
+				'Continue':
+					[ 'Продовжувати рух на {dir}', 'по {road}'],
+				'SlightRight':
+					[ 'Плавний поворот направо', 'на {road}'],
+				'Right':
+					[ 'Направо', 'на {road}'],
+				'SharpRight':
+					[ 'Різкий поворот направо', 'на {road}'],
+				'TurnAround':
+					[ 'Розгорнутися'],
+				'SharpLeft':
+					[ 'Різкий поворот наліво', 'на {road}'],
+				'Left':
+					[ 'Поворот наліво', 'на {road}'],
+				'SlightLeft':
+					[ 'Плавний поворот наліво', 'на {road}'],
+				'WaypointReached':
+					[ 'Точка досягнута'],
+				'Roundabout':
+					[ "{ExitStr} з'їзд з кільця", 'на {road}'],
+				'DestinationReached':
+					[ 'Закінчення маршруту'],
+				'Fork': [ 'На розвилці поверніть {modifier}', 'на {road}'],
+				'Merge': [ 'Візьміть {modifier}', 'на {road}'],
+				'OnRamp': [ "Поверніть {modifier} на з'їзд", 'на {road}'],
+				'OffRamp': [ "З'їжджайте на {modifier}", 'на {road}'],
+				'EndOfRoad': [ 'Поверніть {modifier} в кінці дороги', 'на {road}'],
+				'Onto': 'на {road}'
+			},
+			formatOrder: function(n) {
+				return n + '-й';
+			},
+			ui: {
+				startPlaceholder: 'Початок',
+				viaPlaceholder: 'Через {viaNumber}',
+				endPlaceholder: 'Кінець'
+			},
+			units: {
+				meters: 'м',
+				kilometers: 'км',
+				yards: 'ярд',
+				miles: 'ми',
+				hours: 'г',
+				minutes: 'хв',
+				seconds: 'сек'
 			}
 		}
 	});
