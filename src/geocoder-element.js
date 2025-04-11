@@ -80,7 +80,8 @@
 			}, geocoderInput);
 
 			if (closeButton) {
-				L.DomEvent.addListener(closeButton, 'click', function() {
+				L.DomEvent.addListener(closeButton, 'click', function(e) {
+					L.DomEvent.stopPropagation(e);
 					this.fire('delete', { waypoint: this._waypoint });
 				}, this);
 			}
