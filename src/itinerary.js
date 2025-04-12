@@ -53,7 +53,7 @@
 			this._altContainer = this.createAlternativesContainer();
 			this._container.appendChild(this._altContainer);
 			L.DomEvent.disableClickPropagation(this._container);
-			L.DomEvent.addListener(this._container, 'mousewheel', function(e) {
+			L.DomEvent.addListener(this._container, 'mousewheel wheel', function(e) {
 				L.DomEvent.stopPropagation(e);
 			});
 
